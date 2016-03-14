@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+
+testNumber="01"
+
+# Compiles
+gcc lab1.c -std=c11 -o out/lab1
+
+# Executes against the test file
+out/lab1 testing/input/input-$testNumber > testing/output/output-$testNumber

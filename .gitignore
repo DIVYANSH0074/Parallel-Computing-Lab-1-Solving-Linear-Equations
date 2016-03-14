@@ -1,0 +1,5 @@
+# IDE ignores
+.idea/
+
+# C ignores
+out/
