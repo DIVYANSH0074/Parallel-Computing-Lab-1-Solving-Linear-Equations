@@ -3,3 +3,10 @@
 
 # C ignores
 out/
+gs
+
+# MPI compilation ignores
+gs.dSYM/
+
+# Output ignores
+testing/output/
