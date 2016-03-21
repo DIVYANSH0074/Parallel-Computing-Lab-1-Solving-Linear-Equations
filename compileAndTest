@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
+# Parallel version of the compile and test script
+
 set -e
 
 testNumber="01"
 
 # Compiles
-gcc -g -Wall -o gs gs.c -std=c99
+mpicc -g -Wall -o gs gs.c -std=c99
 
 # Executes against the test file
-./gs testing/input/input-$testNumber > testing/output/output-$testNumber
+mpirun -n 1 ./gs testing/input/input-01 > testing/output/output-$testNumber
 
 cat testing/output/output-$testNumber

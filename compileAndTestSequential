@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -e
+
+testNumber="01"
+
+# Compiles
+gcc -g -Wall -o gs gs.c -std=c99
+
+# Executes against the test file
+./gs testing/input/input-$testNumber > testing/output/output-$testNumber
+
+cat testing/output/output-$testNumber

@@ -1,13 +1,15 @@
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <mpi.h>
 
 /* By Jason Yao */
 typedef enum { false, true } bool; // Enables boolean types
 
 /* Configuration settings */
 bool IS_DEBUG_MODE = false;         /* Change to true to see intermediate values */
-bool IS_SEQUENTIAL_MODE = true;     /* Change to true to switch to sequential version */
+bool IS_SEQUENTIAL_MODE = false;     /* Change to true to switch to sequential version */
 
 /***** Globals ******/
 float **a;                          /* The coefficients */
@@ -25,6 +27,7 @@ void get_input();       /* Read input from file */
 /* Solution suite function declarations */
 void generateNextRound();
 int sequential();
+void cleanup();
 
 /* Testing suite function declarations */
 void testCurrent();
@@ -34,7 +37,6 @@ void testGeneratedXAndErr(float *newX_i, float *newErr);
 /**********************
  * Test Suite Functions
  **********************/
-
 void testCurrent()
 {
     printf("The curr[i] matrix:\n");
@@ -129,6 +131,9 @@ void generateNextRound()
 
     if (isDone)
         SOLUTION_IS_SOLVED = true;
+
+    free(newX_i);
+    free(newErr);
 } // End of the generate next round function
 
 /**
@@ -136,9 +141,174 @@ void generateNextRound()
  */
 int parallel()
 {
-    //TODO do parallel version
-    return 0;
-}
+    // Sets the current x values to the initial x values
+    for (int i = 0; i < num; ++i)
+        curr[i] = x[i];
+
+    /* MPI stuff */
+    int comm_size;      // Number of processes
+    int my_rank;        // My process rank
+    int count = 0;      // The current iteration cycle
+
+    /**
+     * Solution:
+     * 1.) send to each process n/p_ceiling old x_i values in a subarray,
+     * where n == number of elements of x_i, and p == number of processes.
+     * 2.) Have each process calculate the new x_i subarray
+     *
+     * 3.) Use MPI_Allgather to gather all new x_i subarrays. For each new x_i, calculate new_error.
+     * For each element in the full error subarray, check to see if any are above the absolute error stated.
+     * If no, sets x to the new x_i values, and returns the count. If yes, starts from 1 with the MPI_Allgather.
+     */
+
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
+    int local_n = (num + comm_size - 1)/(comm_size); // sub_array_size_ceiling, number of elements in the subarray
+    float* local_curr; // recieving buffer for elements being scattered in blocks
+    float* new_x = (float *) malloc(num * sizeof(float));       // Contains all new values
+    float* new_err = (float *) malloc(num * sizeof(float));     // Contains all new errors
+
+    for (; !SOLUTION_IS_SOLVED; ++count)
+    {
+        local_curr = (float *) malloc(local_n * sizeof(float)); // Buffer for calculated x_i subarray
+
+        if (my_rank == 0)
+        {
+            // Process is root
+            // Scatters the current x_i values to each process
+            MPI_Scatter(curr, local_n, MPI_FLOAT, local_curr, local_n, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        } // End of dealing with root rank
+        else
+        {
+            // Process is not root
+            MPI_Scatter(a, local_n, MPI_FLOAT, local_curr, local_n, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        } // End of dealing with non-root rank
+
+        // Generates all new x_i
+        for (int i = 0; i < local_n; ++i)
+        {
+            // Finds x_i
+            local_curr[i] = b[i];
+
+            for (int j = 0; j < num; ++j)
+                if (j != i)
+                    local_curr[i] -= (a[i * num][j] * curr[j]);
+            local_curr[i] /= a[i][i];
+        } // At the end of this, local_x[] holds the newly calculated x_i subarray
+
+        // Gathers each processes's local_x[], concatenates, and stores in each process's curr[]
+        MPI_Allgather(local_curr, local_n, MPI_FLOAT, new_x, local_n, MPI_FLOAT, MPI_COMM_WORLD);
+
+        // Checks each x_i for closeness validity
+        bool isDone = true;
+        for (int i = 0; i < num; ++i)
+        {
+            new_err[i] = fabs((new_x[i] - curr[i])/(new_x[i]));
+            if (new_err[i] > err)
+                isDone = false;
+
+            curr[i] = new_x[i];
+            x[i] = curr[i];
+        }
+
+        if (IS_DEBUG_MODE)
+            testGeneratedXAndErr(new_x, new_err);
+
+        if (isDone)
+            SOLUTION_IS_SOLVED = true;
+    } // End of parallel
+
+    // Frees everything
+    free(local_curr);
+    free(new_x);
+    free(new_err);
+
+
+
+
+    // Gathers all of the newly calculated x_i values
+//    MPI_Allgather(local_x, sub_array_size_ceiling, MPI_FLOAT, curr, sub_array_size_ceiling, MPI_FLOAT, MPI_COMM_WORLD);
+
+//    // Version based off of allgather
+//    local_x = (float *) malloc(num * sizeof(float));    // Out
+//    new_err = (float *) malloc(num * sizeof(float));    // Out
+//    int local_m, local_n; // m == upper range for i, n == upper range for j
+//    int local_i, local_j;
+//
+//    for (; !SOLUTION_IS_SOLVED; ++count)
+//    {
+//        // Generates in a parallel fashion
+//        MPI_Allgather(local_x, local_n, MPI_FLOAT, curr, local_n, MPI_FLOAT, MPI_COMM_WORLD);
+//
+//        // Generates all new x_i
+//        for (local_i = 0; local_i < local_m; ++local_i)
+//        {
+//            // Finds x_i
+//            local_x[local_i] = b[local_i];
+//
+//            for (local_j = 0; local_j < num; ++local_j)
+//                if (local_j != local_i)
+//                    local_x[local_i] -= (a[local_i*num][local_j] * curr[local_j]);
+//
+//            local_x[local_i] /= a[local_i][local_i];
+//        }
+//
+//        // Checks each x_i for closeness validity
+//        bool isDone = true;
+//        for (int i = 0; i < num; ++i)
+//        {
+//            new_err[i] = fabs((local_x[i] - curr[i])/(local_x[i]));
+//            if (new_err[i] > err)
+//                isDone = false;
+//
+//            curr[i] = local_x[i];
+//            x[i] = curr[i];
+//        }
+//
+//        if (IS_DEBUG_MODE)
+//            testGeneratedXAndErr(local_x, new_err);
+//
+//        if (isDone)
+//            SOLUTION_IS_SOLVED = true;
+//        /* End of parallel code */
+//
+//        if (SOLUTION_IS_SOLVED)
+//            break;
+//    } // End of iterating through all test cycles
+
+
+
+
+
+    // Version based off of rank differential
+//    if (my_rank != 0)
+//    {
+//        new_x_i = (float *) malloc(num * sizeof(float));
+//        new_err = (float *) malloc(num * sizeof(float));
+//
+//        // Process is not root
+//        for (; !SOLUTION_IS_SOLVED; ++count)
+//        {
+//
+//            generateNextRound();
+//
+//            if (SOLUTION_IS_SOLVED)
+//                break;
+//        }
+//
+//    } // End of dealing with root rank
+//    else
+//    {
+//        // Process is root
+//    } // End of dealing with non-root rank
+
+//    free(local_x);
+//    free(new_err);
+    MPI_Finalize();
+    return count;
+} // End of the parallel function
 
 /**
  * Returns the number of iterations to solve these equations
@@ -158,7 +328,7 @@ int sequential()
             break;
     }
     return count;
-} // End of the solve function
+} // End of the sequential function
 
 /* 
    Conditions for convergence (diagonal dominance):
@@ -197,8 +367,7 @@ void check_matrix()
         printf("The matrix will not converge\n");
         exit(1);
     }
-}
-
+} // End of the check matrix function
 
 /******************************************************/
 /* Read input from file */
@@ -276,16 +445,29 @@ void get_input(char filename[])
 
 /************************************************************/
 
+void cleanup()
+{
+    for (int i = 0; i < num; ++i)
+        free(a[i]);
+    free(a);
+    free(x);
+    free(curr);
+    free(b);
+} // End of the cleanup function
 
 int main(int argc, char *argv[])
 {
+    /* Timing stuff */
+    clock_t start, end;
+    double cpu_time_used;
+    start = clock();
 
-    int i;
-    int nit = 0; /* number of iterations */
+    /* Number of iterations */
+    int nit = 0;
 
     if( argc != 2)
     {
-        printf("Usage: gsref filename\n");
+        printf("Usage: ./gsref filename\n");
         exit(1);
     }
 
@@ -302,9 +484,16 @@ int main(int argc, char *argv[])
         nit = parallel();
 
     /* Writing to the stdout */
-    for( i = 0; i < num; i++)
+    for(int i = 0; i < num; i++)
         printf("%f\n",x[i]);
 
     printf("total number of iterations: %d\n", nit);
-    exit(0);
+    cleanup();
+
+    // Timing stuff
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("CPU Time used was: %f\n", cpu_time_used); // TODO remove after dealing with timing
+
+    return EXIT_SUCCESS;
 } // End of the main function
