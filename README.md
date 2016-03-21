@@ -1,7 +1,7 @@
 # Parallel Computing Lab 1: Solving Linear Equations
-By Jason Yao, [github](https://www.github.com/JasonYao/SolvingLinearEquations)
+By Jason Yao, [github](https://github.com/JasonYao/Parallel-Computing-Lab-1-Solving-Linear-Equations)
 
-## Note for the grader's convenience (and removal of eyestrain)
+## Note for the grader's convenience (and lessening of eyestrain)
 This README utilises github's markdown, and as such is much better read on the github website listed above.
 
 ## Description
@@ -10,7 +10,7 @@ Both parallel and sequential versions of this code are provided in the source, a
 
 ## Compilation & Running
 ### To compile the code and test against an input automatically
-(To change the input, simply change `testNumber="01"` to the test case you'd like: small == 01, medium == 02, large == 03, huge == 04) 
+To change the input, simply change `testNumber="01"` to the test case you'd like: small.txt == 01, medium.txt == 02, large.txt == 03, huge.txt == 04
 ```sh
 ./compileAndTest
 ```
@@ -18,7 +18,7 @@ Both parallel and sequential versions of this code are provided in the source, a
 ### To compile and run the code manually
 ```sh
 mpicc -g -Wall -o <output_file_name> <source_file_name>
-mpirun -n <number_of_processes> ./gs <inputfile.txt>
+mpirun -n <number_of_processes> ./<output_file_name> <inputfile.txt>
 ```
 
 e.g.
@@ -36,12 +36,8 @@ Where:
 
 - `-o` is to signify the output binary
 
-- `gs` is the output binary's filename
-
-- `gs.c` is the source file
-
 ## Sequential version
-If you'd like to run the sequential version of the code instead, please set
+If you'd like to run the sequential version of the code instead, please edit the source file [gs.c](gs.c) and change line **10** from
 
 ```sh
 bool IS_SEQUENTIAL_MODE = false;
@@ -53,4 +49,4 @@ bool IS_SEQUENTIAL_MODE = true;
 then compile again before running
 
 ## License
-This repo is licensed under the terms of the GNU GPL v3 license, a copy of which may be found [here](LICENSE).
+This repo is licensed under the terms of the GNU GPL v3, a copy of which may be found [here](LICENSE).
