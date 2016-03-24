@@ -5,12 +5,12 @@ The speedup due to process count is shown in the graph below:
 ![The speedup due to process count](img/speedup.png)
 
 Where we define speedup per Dr.Zahran as:
-![Process speedup definition](speedupDefinition.png)
+![Process speedup definition](img/speedupDefinition.png)
 
 This speedup graph was derived from the averages of the time required shown in the graph below,
 and taken from a sample size of 5 runs per each set, with the full data available for viewing [here](Aggregate Output.xlsx).
 
-![Program runtime](runtime.png)
+![Program runtime](img/runtime.png)
 
 ## The "Why"
 As we can see per the trendline in the runtime graph, as the number of processes increases, 
