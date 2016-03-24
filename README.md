@@ -4,6 +4,8 @@ By Jason Yao, [github](https://github.com/JasonYao/Parallel-Computing-Lab-1-Solv
 ## Note for the grader's convenience (and lessening of eyestrain)
 This README utilises github's markdown, and is a much easier read on the github website listed above.
 
+For my conclusion, please see [here](CONCLUSION)
+
 ## Description
 This program is designed to solve a group of linear equations in an algorithmic fashion. 
 Both parallel and sequential versions of this code are provided in the source, and can easily be toggled.
