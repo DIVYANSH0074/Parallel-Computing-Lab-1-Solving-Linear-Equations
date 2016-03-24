@@ -10,7 +10,8 @@ typedef enum { false, true } bool; // Enables boolean types
 
 /* Configuration settings */
 bool IS_DEBUG_MODE = false;         /* Change to true to see intermediate values */
-bool IS_SEQUENTIAL_MODE = false;     /* Change to true to switch to sequential version */
+bool IS_SEQUENTIAL_MODE = false;    /* Change to true to switch to sequential version */
+bool IS_TIMED_MODE = false;         /* Change to true to switch to show runtime */
 
 /***** Globals ******/
 float **a;                          /* The coefficients */
@@ -175,9 +176,6 @@ int parallel2(int comm_size, int my_rank) {
     if (comm_size > num)
         numberOfValidProcesses = num;
 
-    //TODO remove after testing
-//    printf("START ---------Process: %d----------------- Valid thread count: %d\n", my_rank, numberOfValidProcesses);
-
     // Identifies invalid threads
     int invalidThreadCount = 0;
 
@@ -188,7 +186,6 @@ int parallel2(int comm_size, int my_rank) {
             ++invalidThreadCount;
             if (my_rank == i)
             {
-//                printf("Process %d has been marked as *****INVALID*****\n", my_rank); //TODO remove after testing
                 upper_index_range = 0;
                 lower_index_range = 0;
                 local_n = 1;
@@ -196,8 +193,6 @@ int parallel2(int comm_size, int my_rank) {
             }
         }
     }
-//    printf("Process %d has invalid thread count: %d\n", my_rank, invalidThreadCount); //TODO remove after testing
-
 
     /**
      * Marks a process as invalid if they have nothing.
@@ -211,8 +206,6 @@ int parallel2(int comm_size, int my_rank) {
         numberOfValidProcesses = num - 1;
     else
         numberOfValidProcesses -= invalidThreadCount;
-
-//    printf("END ---------Process: %d----------------- Valid thread count: %d\n", my_rank, numberOfValidProcesses);
 
     if ((my_rank == numberOfValidProcesses - 1) && (num % numberOfValidProcesses != 0))
     {
@@ -235,14 +228,13 @@ int parallel2(int comm_size, int my_rank) {
         upper_index_range = my_rank * local_n + local_n;
     }
 
-    //TODO remove after
-//    if (my_rank >= num)
-//    {
-//        printf("my_rank: %d\n", my_rank);
-//        printf("local_n: %d, count: %d, specific_n: %d, leftBound: %d, rightBound: %d, numberOfValidProcesses: %d\n",
-//               local_n, count, specific_n, lower_index_range, upper_index_range, numberOfValidProcesses);
-//    printf("The number of valid threads: %d, Invalid threads: %d\n", numberOfValidProcesses, invalidThreadCount);
-//    }
+    if (IS_DEBUG_MODE)
+    {
+        printf("my_rank: %d, local_n: %d, count: %d, specific_n: %d, "
+                       "leftBound: %d, rightBound: %d, numberOfValidProcesses: %d\n", my_rank, local_n, count,
+               specific_n, lower_index_range, upper_index_range, numberOfValidProcesses);
+        printf("The number of valid threads: %d, Invalid threads: %d\n", numberOfValidProcesses, invalidThreadCount);
+    }
 
     // Allocations
     float* local_new;
@@ -263,8 +255,6 @@ int parallel2(int comm_size, int my_rank) {
     // Beginning of iteration
     for (; !SOLUTION_IS_SOLVED; ++count)
     {
-        //TODO remove after
-//        printf("--------------START loop: Process %d\n", my_rank);
         // Generates x_i if it is a process marked with work
         if (my_rank < num)
         {
@@ -284,15 +274,11 @@ int parallel2(int comm_size, int my_rank) {
             }
         } // End of x_i generation by working threads
 
-//        printf("Check 1: my_rank = %d, count = %d\n", my_rank, count); //TODO remove after
         // Same block is reached by all processes
         MPI_Barrier(MPI_COMM_WORLD);
-//        printf("Check 2: my_rank = %d, count = %d\n", my_rank, count); //TODO remove after
         MPI_Allgather(local_new, local_n, MPI_FLOAT, all_new, invalidUseForN, MPI_FLOAT, MPI_COMM_WORLD);
-//        printf("Check 3: my_rank = %d, count = %d\n", my_rank, count); //TODO remove after
         MPI_Barrier(MPI_COMM_WORLD);
 
-        //printf("Process %d: has count = %d\n", my_rank, count);
         // Each process checks each x_i for closeness validity, and checks whether it is complete for them
         bool isDone = true;
 
@@ -302,26 +288,16 @@ int parallel2(int comm_size, int my_rank) {
             if (new_errors[i] > err)
                 isDone = false;
             x[i] = all_new[i];
-
-//            if (my_rank % 2 == 0)
-//                printf("%f ", x[i]);
         }
-        //TODO remove after
-//        if (my_rank % 2 == 0)
-//            printf("--------------------------------------rank: %d\n", my_rank);
 
         if ((IS_DEBUG_MODE) && (my_rank == 0))
             testGeneratedXAndErr(all_new, new_errors);
 
         if (isDone)
             SOLUTION_IS_SOLVED = true;
-
-        //TODO remove after
-//        printf("End of iteration: Process %d\n", my_rank);
     } // End of iterating until done
-    //TODO remove after
-//    printf("--------------OUT OF LOOP: Process %d\n", my_rank);
 
+    // Internal function cleanup
     free(new_errors);
     free(all_new);
     free(local_new);
@@ -508,6 +484,14 @@ int main(int argc, char *argv[])
             printf("%f\n",x[i]);
 
         printf("total number of iterations: %d\n", nit);
+
+        // Timing stuff
+        if (IS_TIMED_MODE)
+        {
+            end = clock();
+            cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+            printf("CPU Time used was: %f\n", cpu_time_used);
+        }
     }
     else
     {
@@ -525,9 +509,12 @@ int main(int argc, char *argv[])
             printf("total number of iterations: %d\n", nit);
 
             // Timing stuff
-            end = clock();
-            cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-            printf("CPU Time used was: %f\n", cpu_time_used); // TODO remove after dealing with timing
+            if (IS_TIMED_MODE)
+            {
+                end = clock();
+                cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+                printf("CPU Time used was: %f\n", cpu_time_used);
+            }
         }
         MPI_Finalize();
     } // End of dealing with parallel
