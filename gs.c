@@ -151,14 +151,20 @@ int parallel2(int comm_size, int my_rank) {
     int count = 0;
     int local_n;
 
-    if ((comm_size > num) && (my_rank < num))
+    // Calculates the size of the subarray that this process needs to deal with.
+    if (comm_size > num)
+    {
+        // More processes than number of elements, give 1 element to each process with rank < num, and a white value
         local_n = 1;
-    else if ((comm_size > num) && (my_rank >= num))
-        local_n = 1;
+    }
     else
-        local_n = (num + comm_size - 1) / (comm_size); // sub_array_size_ceiling, number of elements in the subarray
+    {
+        // Less processes than number of elements, give ceil(number_of_elements/comm_size) to each process
+        local_n = (num + comm_size - 1) / (comm_size); // ceil(number_of_elements/comm_size)
+    }
 
     int specific_n = local_n;
+    int invalidUseForN = local_n;
 
     // Indices to work between
     int lower_index_range = my_rank * local_n;
@@ -169,8 +175,49 @@ int parallel2(int comm_size, int my_rank) {
     if (comm_size > num)
         numberOfValidProcesses = num;
 
-    if ((my_rank == numberOfValidProcesses - 1) && (num % numberOfValidProcesses != 0)) {
-//        printf("GOT SET HERE\n"); //TODO remove after
+//    if (comm_size > num)
+//        numberOfValidProcesses = num;
+
+    printf("START ---------Process: %d----------------- Valid thread count: %d\n", my_rank, numberOfValidProcesses);
+
+    // Identifies invalid threads
+    int invalidThreadCount = 0;
+
+    for (int i = 0; i < numberOfValidProcesses; ++i)
+    {
+        if (((i - 1) < num) && (i * invalidUseForN >= num))
+        {
+            ++invalidThreadCount;
+            if (my_rank == i)
+            {
+//                printf("Process %d has been marked as *****INVALID*****\n", my_rank); //TODO remove after testing
+                upper_index_range = 0;
+                lower_index_range = 0;
+                local_n = 1;
+                specific_n = 1;
+            }
+        }
+    }
+    printf("Process %d has invalid thread count: %d\n", my_rank, invalidThreadCount);
+
+
+    /**
+     * Marks a process as invalid if they have nothing.
+     * e.g. num = 5, p = 4: ceil(num/comm_sz) == 2
+     * p_0: {A, B}
+     * p_1: {C, D}
+     * p_2: {E}
+     * p_3: {} <---- We need to thus mark this thread as an invalid one.
+     */
+    if ((comm_size > num) && (invalidThreadCount == 1))
+        numberOfValidProcesses = num - 1;
+    else
+        numberOfValidProcesses -= invalidThreadCount;
+
+//    printf("END ---------Process: %d----------------- Valid thread count: %d\n", my_rank, numberOfValidProcesses);
+
+    if ((my_rank == numberOfValidProcesses - 1) && (num % numberOfValidProcesses != 0))
+    {
         // Sets upper index range for last valid thread that isn't easily modulo'd
         upper_index_range = my_rank * local_n + (num % local_n);
         local_n = num % local_n;
@@ -179,12 +226,12 @@ int parallel2(int comm_size, int my_rank) {
         // Sets upper index range for last valid thread that is easily modulo'd
         upper_index_range = my_rank * local_n + local_n;
     }
-    else if (my_rank >= num)
+    else if (my_rank >= numberOfValidProcesses)
     {
         // Sets upper index range for threads that don't do any work
         upper_index_range = 0;
     }
-    else if (my_rank < numberOfValidProcesses - 1)
+    else if (my_rank < numberOfValidProcesses)
     {
         // Sets upper index range for threads that do work
         upper_index_range = my_rank * local_n + local_n;
@@ -193,9 +240,10 @@ int parallel2(int comm_size, int my_rank) {
     //TODO remove after
 //    if (my_rank >= num)
 //    {
-//        printf("my_rank: %d\n", my_rank);
-//        printf("local_n: %d, count: %d, specific_n: %d, leftBound: %d, rightBound: %d, numberOfValidProcesses: %d\n",
-//               local_n, count, specific_n, lower_index_range, upper_index_range, numberOfValidProcesses);
+        printf("my_rank: %d\n", my_rank);
+        printf("local_n: %d, count: %d, specific_n: %d, leftBound: %d, rightBound: %d, numberOfValidProcesses: %d\n",
+               local_n, count, specific_n, lower_index_range, upper_index_range, numberOfValidProcesses);
+    printf("The number of valid threads: %d, Invalid threads: %d\n", numberOfValidProcesses, invalidThreadCount);
 //    }
 
     // Allocations
@@ -236,12 +284,12 @@ int parallel2(int comm_size, int my_rank) {
             }
         } // End of x_i generation by working threads
 
-//        printf("Check 1: my_rank = %d\n", my_rank); //TODO remove after
+//        printf("Check 1: my_rank = %d, count = %d\n", my_rank, count); //TODO remove after
         // Same block is reached by all processes
         MPI_Barrier(MPI_COMM_WORLD);
-//        printf("Check 2: my_rank = %d\n", my_rank); // TODO remove after
+//        printf("Check 2: my_rank = %d, count = %d\n", my_rank, count); //TODO remove after
         MPI_Allgather(local_new, local_n, MPI_FLOAT, all_new, specific_n, MPI_FLOAT, MPI_COMM_WORLD);
-//        printf("Check 3: my_rank = %d\n", my_rank); //TODO remove after
+//        printf("Check 3: my_rank = %d, count = %d\n", my_rank, count); //TODO remove after
         MPI_Barrier(MPI_COMM_WORLD);
 
         // Each process checks each x_i for closeness validity, and checks whether it is complete for them
@@ -454,7 +502,7 @@ int main(int argc, char *argv[])
         MPI_Init(NULL, NULL);
         MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
         MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-        
+
         nit = parallel2(comm_size, my_rank);
         if (my_rank == 0)
         {
