@@ -5,11 +5,17 @@
 set -e
 
 testNumber="01"
+numberOfProcesses="1"
+
+# Loads mpi-module if on CIMS
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+	module load openmpi-x86_64
+fi
 
 # Compiles
 mpicc -g -Wall -o gs gs.c -std=c99
 
 # Executes against the test file
-mpirun -n 1 ./gs testing/input/input-01 > testing/output/output-$testNumber
+mpirun -n $numberOfProcesses ./gs testing/input/input-$testNumber > testing/output/output-$testNumber
 
 cat testing/output/output-$testNumber
