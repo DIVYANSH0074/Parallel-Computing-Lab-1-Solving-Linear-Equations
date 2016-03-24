@@ -2,7 +2,7 @@
 By Jason Yao, [github](https://github.com/JasonYao/Parallel-Computing-Lab-1-Solving-Linear-Equations)
 
 ## Note for the grader's convenience (and lessening of eyestrain)
-This README utilises github's markdown, and as such is much better read on the github website listed above.
+This README utilises github's markdown, and is a much easier read on the github website listed above.
 
 ## Description
 This program is designed to solve a group of linear equations in an algorithmic fashion. 
@@ -37,7 +37,7 @@ Where:
 - `-o` is to signify the output binary
 
 ## Sequential version
-If you'd like to run the sequential version of the code instead, please edit the source file [gs.c](gs.c) and change line **10** from
+If you'd like to run the sequential version of the code instead, please edit the source file [gs.c](gs.c) and change line **13** from
 
 ```sh
 bool IS_SEQUENTIAL_MODE = false;
@@ -45,6 +45,18 @@ bool IS_SEQUENTIAL_MODE = false;
 to
 ```sh
 bool IS_SEQUENTIAL_MODE = true;
+```
+then compile again before running
+
+## Debugging version
+If you'd like to run the debugging version of the code with either parallel or sequential, please edit the source file [gs.c](gs.c) and change line **12** from
+
+```sh
+bool IS_DEBUG_MODE = false;
+```
+to
+```sh
+bool IS_DEBUG_MODE = true;
 ```
 then compile again before running
 
