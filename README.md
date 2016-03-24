@@ -1,7 +1,7 @@
 # Parallel Computing Lab 1: Solving Linear Equations
 By Jason Yao, [github](https://github.com/JasonYao/Parallel-Computing-Lab-1-Solving-Linear-Equations)
 
-## Note for the grader's convenience (and lessening of eyestrain)
+## FOR THE GRADER: 
 This README utilises github's markdown, and is a much easier read on the github website listed above.
 
 For my conclusion, please see [here](CONCLUSION)
@@ -38,6 +38,18 @@ Where:
 
 - `-o` is to signify the output binary
 
+## Debugging version
+If you'd like to run the debugging version of the code irrespective of the other flags, please edit the source file [gs.c](gs.c) and change line **12** from
+
+```sh
+bool IS_DEBUG_MODE = false;
+```
+to
+```sh
+bool IS_DEBUG_MODE = true;
+```
+then compile again before running
+
 ## Sequential version
 If you'd like to run the sequential version of the code instead, please edit the source file [gs.c](gs.c) and change line **13** from
 
@@ -50,15 +62,15 @@ bool IS_SEQUENTIAL_MODE = true;
 ```
 then compile again before running
 
-## Debugging version
-If you'd like to run the debugging version of the code with either parallel or sequential, please edit the source file [gs.c](gs.c) and change line **12** from
+## Timed version
+If you'd like to run the timed version of this code, irrespective of the other flags, please edit the source file [gs.c](gs.c) and change line **14** from
 
 ```sh
-bool IS_DEBUG_MODE = false;
+bool IS_TIMED_MODE = false;
 ```
 to
 ```sh
-bool IS_DEBUG_MODE = true;
+bool IS_TIMED_MODE = true;
 ```
 then compile again before running
 
