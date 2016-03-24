@@ -10,3 +10,6 @@ gs.dSYM/
 
 # Output ignores
 testing/output/
+
+# OSX ignores
+.DS_Store
